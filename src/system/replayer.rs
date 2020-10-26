@@ -11,7 +11,7 @@ use tezos_messages::p2p::{
 use tezos_conversation::{Decipher, Identity, NonceAddition};
 use tokio::{net::{TcpStream, TcpListener}, io::{AsyncReadExt, AsyncWriteExt}};
 use bytes::Buf;
-use crate::messages::p2p_message::P2pMessage;
+use crate::messages::p2p_message::{P2pMessage, TezosPeerMessage, HandshakeMessage, FullPeerMessage};
 use crate::storage::P2pMessageType;
 
 /// Create an replay of given message onto the given address
@@ -99,7 +99,7 @@ where
         stream.write_all(respond_cm_chunk.raw()).await?;
         let decipher = identity.decipher(cm_chunk.as_ref(), respond_cm_chunk.raw()).ok().unwrap();
         tracing::info!("second handshake done");
-        replay_messages(stream, messages, decipher, true).await
+        replay_messages(stream, messages, decipher, false).await
     }
 }
 
@@ -159,42 +159,69 @@ where
     let mut initiators = 0;
     let mut responders = 0;
     let mut stream = stream;
+    let mut reply = Vec::with_capacity(0x10000);
     for message in messages {
-        let chunk_number = if message.incoming != incoming {
-            let a = NonceAddition::Initiator(initiators);
-            initiators += 1;
-            a
+        // if this message is incoming and first message is also incoming
+        // or this message is outgoing and first message is also outgoing
+        // then the message goes from initiator
+        let (chunk_number, counter) = if message.incoming == incoming {
+            (NonceAddition::Initiator(initiators), &mut initiators)
         } else {
-            let a = NonceAddition::Responder(responders);
-            responders += 1;
-            a
+            (NonceAddition::Responder(responders), &mut responders)
         };
         if message.incoming {
             let mut bytes = message.decrypted_bytes;
             let l = bytes.len();
-            let encrypted = decipher.encrypt(&mut bytes[2..(l - 16)], chunk_number).unwrap();
+            let will_send_message = deserialize(*counter, &bytes[2..(l - 16)]);
+            tracing::info!("replay chunk\nSENT: {:x?}", will_send_message);
+            let encrypted = decipher.encrypt(&mut bytes[2..(l - 16)], chunk_number.clone()).unwrap();
             bytes[2..l].clone_from_slice(encrypted.as_ref());
             let chunk = BinaryChunk::try_from(bytes).unwrap();
-            tracing::info!("replay chunk\nSENT: {:x?}", message.message[0]);
-            stream.write_all(chunk.raw()).await?;
+            reply.extend_from_slice(chunk.raw());
         } else {
+            if !reply.is_empty() {
+                stream.write_all(reply.as_ref()).await?;
+                reply.clear();
+            }
             let mut chunk = read_chunk_data(&mut stream).await?;
             let l = chunk.len();
             let decrypted = decipher.decrypt(&chunk[2..], chunk_number).unwrap();
+            let received_message = deserialize(*counter, decrypted.as_slice());
             chunk[2..(l - 16)].clone_from_slice(decrypted.as_ref());
-            if decrypted != &message.decrypted_bytes[2..(message.decrypted_bytes.len() - 16)] {
-                if decrypted.len() > 2 {
-                    tracing::warn!(
-                        "unexpected chunk\nRECEIVED: {:x?}\nEXPECTED: {:x?}\nEXPECTED TYPE: {:?}",
-                        PeerMessageResponse::from_bytes(decrypted.as_slice()),
-                        message.message[0],
-                        P2pMessageType::extract(&message),
-                    );
-                }
+            let expected = &message.decrypted_bytes[2..(message.decrypted_bytes.len() - 16)];
+            if decrypted != expected {
+                let expected_message = deserialize(*counter, expected);
+                tracing::warn!("unexpected chunk\nRECEIVED: {:x?}\nEXPECTED: {:x?}", received_message, expected_message);
             } else {
-                tracing::info!("expected chunk\nRECEIVED: {:x?}", message.message[0]);
+                tracing::info!("expected chunk\nRECEIVED: {:x?}", received_message);
             }
         }
+        *counter += 1;
     }
     Ok(())
+}
+
+fn deserialize(counter: u64, data: &[u8]) -> Result<(P2pMessageType, String), failure::Error> {
+    match counter {
+        0 => {
+            let m = MetadataMessage::from_bytes(data)?;
+            let s = format!("{:x?}", m);
+            let ty = P2pMessageType::extract_from_tezos_peer_message(&TezosPeerMessage::HandshakeMessage(HandshakeMessage::MetadataMessage(m)));
+            Ok((ty, s))
+        },
+        1 => {
+            let m = AckMessage::from_bytes(data)?;
+            let s = format!("{:x?}", m);
+            let ty = P2pMessageType::extract_from_tezos_peer_message(&TezosPeerMessage::HandshakeMessage(HandshakeMessage::AckMessage(m)));
+            Ok((ty, s))
+        },
+        _ => {
+            let m: PeerMessageResponse = PeerMessageResponse::from_bytes(data)?;
+            let m = m.messages().first()
+                .ok_or(failure::Error::from(io::Error::new(io::ErrorKind::NotFound, "empty")))?;
+            let s = format!("{:x?}", m);
+            let ty = P2pMessageType::extract_from_tezos_peer_message(&TezosPeerMessage::PeerMessage(FullPeerMessage::from(m.clone())));
+            Ok((ty, s))
+        }
+    }
 }

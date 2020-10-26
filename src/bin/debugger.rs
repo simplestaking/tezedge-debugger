@@ -36,7 +36,7 @@ async fn load_identity() -> Identity {
     let identity_paths = [
         "/tmp/volume/identity.json".to_string(),
         "/tmp/volume/data/identity.json".to_string(),
-        format!("{}/.tezos-node/identity.json", std::env::var("HOME").unwrap()),
+        "/home/vladislav/disk/simplestaking.com/tezedge/light_node/etc/tezedge/identity.json".to_string(),
     ];
 
     loop {

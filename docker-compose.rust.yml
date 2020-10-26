@@ -46,7 +46,7 @@ services:
       - "10100:18732"      # node RPC port
       # Debugger Ports must be specified on node service, because of debugger network_mode attaches
       # debugger's container to the node container, allowing it to analyze node's traffic
-      - "10000:17732"      # debugger RPC port
+      - "17732:17732"      # debugger RPC port
       - "10001:13131/udp"  # debugger syslog port
     entrypoint: sleep inf
 

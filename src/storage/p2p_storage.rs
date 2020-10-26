@@ -528,53 +528,57 @@ pub(crate) mod secondary_indexes {
     }
 
     impl Type {
+        pub fn extract_from_tezos_peer_message(msg: &TezosPeerMessage) -> Self {
+            match msg {
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Disconnect) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::Disconnect) => Self::Disconnect,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Bootstrap) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::Bootstrap) => Self::Bootstrap,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Advertise) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::Advertise(_)) => Self::Advertise,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::SwapRequest) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::SwapRequest(_)) => Self::SwapRequest,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::SwapAck) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::SwapAck(_)) => Self::SwapAck,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetCurrentBranch) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::GetCurrentBranch(_)) => Self::GetCurrentBranch,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::CurrentBranch) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::CurrentBranch(_)) => Self::CurrentBranch,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Deactivate) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::Deactivate(_)) => Self::Deactivate,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetCurrentHead) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::GetCurrentHead(_)) => Self::GetCurrentHead,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::CurrentHead) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::CurrentHead(_)) => Self::CurrentHead,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetBlockHeaders) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::GetBlockHeaders(_)) => Self::GetBlockHeaders,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::BlockHeader) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::BlockHeader(_)) => Self::BlockHeader,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetOperations) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::GetOperations(_)) => Self::GetOperations,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Operation) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::Operation(_)) => Self::Operation,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetProtocols) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::GetProtocols(_)) => Self::GetProtocols,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Protocol) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::Protocol(_)) => Self::Protocol,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetOperationHashesForBlocks) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::GetOperationHashesForBlocks(_)) => Self::GetOperationHashesForBlocks,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::OperationHashesForBlock) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::OperationHashesForBlock(_)) => Self::OperationHashesForBlock,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetOperationsForBlocks) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::GetOperationsForBlocks(_)) => Self::GetOperationsForBlocks,
+                TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::OperationsForBlocks) |
+                TezosPeerMessage::PeerMessage(FullPeerMessage::OperationsForBlocks(_)) => Self::OperationsForBlocks,
+                TezosPeerMessage::HandshakeMessage(HandshakeMessage::ConnectionMessage(_)) => Self::ConnectionMessage,
+                TezosPeerMessage::HandshakeMessage(HandshakeMessage::MetadataMessage(_)) => Self::Metadata,
+                TezosPeerMessage::HandshakeMessage(HandshakeMessage::AckMessage(_)) => Self::AckMessage,
+            }
+        }
+
         pub fn extract(value: &P2pMessage) -> Self {
             if let Some(msg) = value.message.first() {
-                match msg {
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Disconnect) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::Disconnect) => Self::Disconnect,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Bootstrap) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::Bootstrap) => Self::Bootstrap,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Advertise) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::Advertise(_)) => Self::Advertise,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::SwapRequest) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::SwapRequest(_)) => Self::SwapRequest,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::SwapAck) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::SwapAck(_)) => Self::SwapAck,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetCurrentBranch) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::GetCurrentBranch(_)) => Self::GetCurrentBranch,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::CurrentBranch) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::CurrentBranch(_)) => Self::CurrentBranch,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Deactivate) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::Deactivate(_)) => Self::Deactivate,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetCurrentHead) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::GetCurrentHead(_)) => Self::GetCurrentHead,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::CurrentHead) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::CurrentHead(_)) => Self::CurrentHead,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetBlockHeaders) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::GetBlockHeaders(_)) => Self::GetBlockHeaders,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::BlockHeader) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::BlockHeader(_)) => Self::BlockHeader,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetOperations) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::GetOperations(_)) => Self::GetOperations,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Operation) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::Operation(_)) => Self::Operation,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetProtocols) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::GetProtocols(_)) => Self::GetProtocols,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::Protocol) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::Protocol(_)) => Self::Protocol,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetOperationHashesForBlocks) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::GetOperationHashesForBlocks(_)) => Self::GetOperationHashesForBlocks,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::OperationHashesForBlock) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::OperationHashesForBlock(_)) => Self::OperationHashesForBlock,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::GetOperationsForBlocks) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::GetOperationsForBlocks(_)) => Self::GetOperationsForBlocks,
-                    TezosPeerMessage::PartialPeerMessage(PartialPeerMessage::OperationsForBlocks) |
-                    TezosPeerMessage::PeerMessage(FullPeerMessage::OperationsForBlocks(_)) => Self::OperationsForBlocks,
-                    TezosPeerMessage::HandshakeMessage(HandshakeMessage::ConnectionMessage(_)) => Self::ConnectionMessage,
-                    TezosPeerMessage::HandshakeMessage(HandshakeMessage::MetadataMessage(_)) => Self::Metadata,
-                    TezosPeerMessage::HandshakeMessage(HandshakeMessage::AckMessage(_)) => Self::AckMessage,
-                }
+                Self::extract_from_tezos_peer_message(msg)
             } else {
                 Self::P2PMessage
             }

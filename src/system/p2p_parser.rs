@@ -217,19 +217,19 @@ impl Parser {
                             }
                             self.inc(incoming);
                         }
-                        true
+                        failed_to_decrypt.is_empty()
                     },
                     ConsumeResult::NoDecipher(_) => {
                         warn!("identity wrong");
-                        true
+                        false
                     },
                     ConsumeResult::PowInvalid => {
                         warn!("received connection message with wrong pow, maybe foreign packet");
-                        true
+                        false
                     },
                     ConsumeResult::UnexpectedChunks | ConsumeResult::InvalidConversation => {
                         warn!("probably foreign packet");
-                        true
+                        false
                     },
                 }
             }

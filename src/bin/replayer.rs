@@ -26,7 +26,7 @@ struct Opt {
     #[structopt(short, long, default_value = "51.15.220.7:9732")]
     /// Address of the peer which conversation to be replayed
     pub peer_ip: SocketAddr,
-    #[structopt(short, long, default_value = "256")]
+    #[structopt(short, long, default_value = "65536")]
     /// Number of chunks, to be replayed
     pub limit: usize,
 }
