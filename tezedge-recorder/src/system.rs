@@ -17,19 +17,29 @@ use super::{
 };
 
 #[derive(Clone, Deserialize)]
+pub struct P2pConfig {
+    identity: String,
+    pub port: u16,
+}
+
+#[derive(Clone, Deserialize)]
+struct LogConfig {
+    port: u16,
+}
+
+#[derive(Clone, Deserialize)]
 pub struct NodeConfig {
-    pub db_path: String,
-    pub identity_path: String,
-    pub p2p_port: u16,
-    pub rpc_port: Option<u16>,
-    pub syslog_port: Option<u16>,
+    name: String,
+    http_v3: Option<u16>,
+    db: String,
+    p2p: Option<P2pConfig>,
+    log: Option<LogConfig>,
 }
 
 #[derive(Clone, Deserialize)]
 struct Config {
-    pub bpf_sniffer_path: String,
-    pub rpc_port: Option<u16>,
-    pub nodes: Vec<NodeConfig>,
+    http_v2: Option<u16>,
+    nodes: Vec<NodeConfig>,
 }
 
 #[derive(Clone)]
@@ -40,7 +50,7 @@ pub struct Identity {
 
 pub struct NodeInfo {
     identity: Identity,
-    p2p_port: u16,
+    name: String,
 }
 
 #[derive(Error, Debug)]
@@ -55,17 +65,17 @@ pub enum NodeError {
     ParseSk,
 }
 
-pub struct NodeServer {
+struct NodeServer {
     _server: Option<JoinHandle<()>>,
-    _log_client: Option<thread::JoinHandle<()>>,
+    log_client: Option<thread::JoinHandle<()>>,
 }
 
 pub struct System<Db> {
     config: Config,
     port_to_pid: HashMap<u16, u32>,
     node_info: HashMap<u32, NodeInfo>,
-    node_servers: HashMap<u16, NodeServer>,
-    node_dbs: HashMap<u16, Arc<Db>>,
+    node_servers: HashMap<String, NodeServer>,
+    node_dbs: HashMap<String, Arc<Db>>,
     _old_server: Option<JoinHandle<()>>,
     tokio_rt: Runtime,
 }
@@ -97,15 +107,21 @@ impl NodeServer {
         Ok((
             NodeServer {
                 _server: server,
-                _log_client: log_client,
+                log_client,
             },
             db,
         ))
     }
+
+    pub fn join(self) {
+        if let Some(log_client) = self.log_client {
+            log_client.join().unwrap()
+        }
+    }
 }
 
 impl NodeInfo {
-    pub fn new(identity_path: &str, p2p_port: u16) -> Result<Self, NodeError> {
+    pub fn new(identity_path: &str, name: String) -> Result<Self, NodeError> {
         use std::{fs::File, convert::TryInto};
 
         #[derive(Deserialize)]
@@ -140,7 +156,7 @@ impl NodeInfo {
             },
         };
 
-        Ok(NodeInfo { identity, p2p_port })
+        Ok(NodeInfo { identity, name })
     }
 
     pub fn identity(&self) -> Identity {
@@ -171,11 +187,21 @@ impl<Db> System<Db> {
     }
 
     pub fn sniffer_path(&self) -> &str {
-        self.config.bpf_sniffer_path.as_ref()
+        "/tmp/bpf-sniffer.sock"
     }
 
-    pub fn node_configs(&self) -> &[NodeConfig] {
-        self.config.nodes.as_slice()
+    pub fn p2p_configs(&self) -> impl Iterator<Item = &P2pConfig> {
+        self.config.nodes.iter().filter_map(|c| c.p2p.as_ref())
+    }
+
+    pub fn need_bpf(&self) -> bool {
+        self.config.nodes.iter().any(|c| c.p2p.is_some())
+    }
+
+    pub fn join(self) {
+        for (_, server) in self.node_servers {
+            server.join();
+        }
     }
 
     pub fn should_ignore(&self, address: &SocketAddr) -> bool {
@@ -195,7 +221,7 @@ impl<Db> System<Db> {
                     .config
                     .nodes
                     .iter()
-                    .any(|n| n.syslog_port.unwrap_or(0) == p)
+                    .any(|n| n.log.as_ref().map(|l| l.port).unwrap_or(0) == p)
                 {
                     return true;
                 }
@@ -222,10 +248,10 @@ where
         for c in &self.config.nodes {
             let r = running.clone();
             let rt = &self.tokio_rt;
-            match NodeServer::open_spawn(&c.db_path, c.rpc_port, c.syslog_port, rt, r) {
+            match NodeServer::open_spawn(&c.db, c.http_v3, c.log.as_ref().map(|c| c.port), rt, r) {
                 Ok((server, db)) => {
-                    self.node_servers.insert(c.p2p_port, server);
-                    self.node_dbs.insert(c.p2p_port, db);
+                    self.node_servers.insert(c.name.clone(), server);
+                    self.node_dbs.insert(c.name.clone(), db);
                 },
                 Err(error) => {
                     log::error!("{}", error);
@@ -233,7 +259,7 @@ where
             }
         }
 
-        if let Some(port) = self.config.rpc_port {
+        if let Some(port) = self.config.http_v2 {
             let addr = ([0, 0, 0, 0], port);
             let s = warp::serve(server::routes_old(self.node_dbs.clone())).run(addr);
             self._old_server = Some(self.tokio_rt.spawn(s));
@@ -246,11 +272,14 @@ where
             self.node_info.remove(&old_pid).unwrap()
         } else {
             let c = self
-                .node_configs()
+                .config
+                .nodes
                 .iter()
-                .find(|c| c.p2p_port == port)
+                .filter(|c| c.p2p.is_some())
+                .find(|c| c.p2p.as_ref().unwrap().port == port)
                 .unwrap();
-            NodeInfo::new(&c.identity_path, c.p2p_port)?
+            let p2p = c.p2p.as_ref().unwrap();
+            NodeInfo::new(&p2p.identity, c.name.clone())?
         };
         log::info!("attaching to pid: {} at port: {}", pid, port);
         self.port_to_pid.insert(port, pid);
@@ -263,8 +292,8 @@ where
         let db = self
             .node_info
             .get(&pid)
-            .map(|i| i.p2p_port)
-            .and_then(|port| self.node_dbs.get(&port))?
+            .map(|i| i.name.clone())
+            .and_then(|name| self.node_dbs.get(&name))?
             .clone();
         let info = self.node_info.get_mut(&pid)?;
         Some((info, db))

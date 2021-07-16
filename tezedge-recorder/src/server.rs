@@ -162,14 +162,14 @@ where
 }
 
 fn p2p<Db>(
-    dbs: HashMap<u16, Arc<Db>>,
+    dbs: HashMap<String, Arc<Db>>,
 ) -> impl Filter<Extract = (WithStatus<Json>,), Error = Rejection> + Clone + Sync + Send + 'static
 where
     Db: DatabaseFetch + Sync + Send + 'static,
 {
     warp::path!("v2" / "p2p").and(warp::query::query()).map(
         move |filter: MessagesFilter| -> reply::WithStatus<Json> {
-            let node_name = filter.node_name.unwrap_or(9732);
+            let node_name = filter.node_name.clone().unwrap_or("tezedge".to_string());
             match dbs.get(&node_name) {
                 Some(db) => match db.fetch_messages(&filter) {
                     Ok(messages) => reply::with_status(reply::json(&messages), StatusCode::OK),
@@ -179,7 +179,7 @@ where
                     },
                 },
                 None => {
-                    let r = &format!("no such node: {:?}, use `node_name=<port>`", node_name);
+                    let r = &format!("no such node: {:?}", node_name);
                     reply::with_status(reply::json(&r), StatusCode::NOT_FOUND)
                 },
             }
@@ -188,7 +188,7 @@ where
 }
 
 fn p2p_details<Db>(
-    dbs: HashMap<u16, Arc<Db>>,
+    dbs: HashMap<String, Arc<Db>>,
 ) -> impl Filter<Extract = (WithStatus<Json>,), Error = Rejection> + Clone + Sync + Send + 'static
 where
     Db: DatabaseFetch + Sync + Send + 'static,
@@ -196,7 +196,7 @@ where
     warp::path!("v2" / "p2p" / u64)
         .and(warp::query::query())
         .map(move |id: u64, filter: MessagesFilter| -> reply::WithStatus<Json> {
-            let node_name = filter.node_name.unwrap_or(9732);
+            let node_name = filter.node_name.clone().unwrap_or("tezedge".to_string());
             match dbs.get(&node_name) {
                 Some(db) => match db.fetch_message(id) {
                     Ok(message) => reply::with_status(reply::json(&message), StatusCode::OK),
@@ -206,7 +206,7 @@ where
                     },
                 },
                 None => {
-                    let r = &format!("no such node: {:?}, use `node_name=<port>`", node_name);
+                    let r = &format!("no such node: {:?}", node_name);
                     reply::with_status(reply::json(&r), StatusCode::NOT_FOUND)
                 },
             }
@@ -214,14 +214,14 @@ where
 }
 
 fn log_old<Db>(
-    dbs: HashMap<u16, Arc<Db>>,
+    dbs: HashMap<String, Arc<Db>>,
 ) -> impl Filter<Extract = (WithStatus<Json>,), Error = Rejection> + Clone + Sync + Send + 'static
 where
     Db: DatabaseFetch + Sync + Send + 'static,
 {
     warp::path!("v2" / "log").and(warp::query::query()).map(
         move |filter: LogsFilter| -> reply::WithStatus<Json> {
-            let node_name = filter.node_name.unwrap_or(9732);
+            let node_name = filter.node_name.clone().unwrap_or("tezedge".to_string());
             match dbs.get(&node_name) {
                 Some(db) => match db.fetch_log(&filter) {
                     Ok(v) => reply::with_status(reply::json(&v), StatusCode::OK),
@@ -231,7 +231,7 @@ where
                     },
                 },
                 None => {
-                    let r = &format!("no such node: {:?}, use `node_name=<port>`", node_name);
+                    let r = &format!("no such node: {:?}", node_name);
                     reply::with_status(reply::json(&r), StatusCode::NOT_FOUND)
                 },
             }
@@ -240,7 +240,7 @@ where
 }
 
 pub fn routes_old<Db>(
-    dbs: HashMap<u16, Arc<Db>>,
+    dbs: HashMap<String, Arc<Db>>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone + Sync + Send + 'static
 where
     Db: DatabaseFetch + Sync + Send + 'static,

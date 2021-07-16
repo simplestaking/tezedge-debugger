@@ -8,7 +8,7 @@ use serde::{
     ser::{self, SerializeStruct},
 };
 use rocksdb::{Cache, ColumnFamilyDescriptor};
-use storage::persistent::{KeyValueSchema, Encoder, Decoder, SchemaError};
+use storage::persistent::{KeyValueSchema, Encoder, Decoder, SchemaError, database::RocksDbKeyValueSchema};
 use super::{common::Sender, connection};
 
 #[derive(Clone)]
@@ -270,7 +270,9 @@ pub struct Schema;
 impl KeyValueSchema for Schema {
     type Key = Key;
     type Value = Value;
+}
 
+impl RocksDbKeyValueSchema for Schema {
     fn descriptor(_cache: &Cache) -> ColumnFamilyDescriptor {
         use rocksdb::{Options, SliceTransform};
 

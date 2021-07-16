@@ -104,7 +104,7 @@ impl DatabaseFetch for Db {
         Ok(None)
     }
 
-    fn fetch_log(&self, filter: &LogsFilter) -> Result<Vec<node_log::Item>, Self::Error> {
+    fn fetch_log(&self, filter: &LogsFilter) -> Result<Vec<node_log::ItemWithId>, Self::Error> {
         let _ = filter;
         Ok(vec![])
     }

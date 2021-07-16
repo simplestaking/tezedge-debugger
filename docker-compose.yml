@@ -29,16 +29,16 @@ services:
       - RUST_BACKTRACE=1
     volumes:
       - "tezedge-shared-data:/tmp/volume/tezedge:ro"
-      - "tezos-shared-data:/tmp/volume/tezos:ro"
+      - "ocaml-shared-data:/tmp/volume/tezos:ro"
       # /var/lib/docker/volumes/remote-workspace/_data/tezedge-debugger
-      - "/config-docker.toml:/etc/config.toml:ro"
+      - "/var/lib/docker/volumes/remote-workspace/_data/tezedge-debugger/config-docker.toml:/etc/config.toml:ro"
       - "/sys/kernel/debug:/sys/kernel/debug:rw"
     ports:
       - "17732:17732"      # debugger RPC port compatibility server
       - "17742:17742"      # debugger RPC port for tezos node
       - "17743:17743"      # debugger RPC port for tezos node
       - "10000:10000/udp"  # debugger syslog port for tezedge node
-      - "10001:10001/udp"  # debugger syslog port for tezos node
+      - "11001:10001/udp"  # debugger syslog port for tezos node
 
   tezedge-node:
     image: tezedge/tezedge:${TAG:-v1.6.0}-frame-pointers-enabled
@@ -62,16 +62,35 @@ services:
       - "18732:18732"     # node RPC port
       - "3030:3030"       # sandbox launcher port
 
+  ocaml-node:
+    image: tezos/tezos:v9-release
+    entrypoint: sh -c "sleep 5 && /usr/local/bin/entrypoint.sh tezos-node --cors-header='content-type' --cors-origin='*' --rpc-addr=[::]:18733 --net-addr=[::]:9733 --history-mode archive --network mainnet"
+    logging:
+      # Produce syslogs instead of terminal logs
+      driver: "syslog"
+      options:
+        # Send the logs to syslog (UDP only) server (running on debugger)
+        syslog-address: "udp://0.0.0.0:11001"  # Port must match debugger syslog port in 'ports' section
+        # Always in same RFC 5424 format (with microseconds precision)
+        syslog-format: "rfc5424micro"
+    volumes:
+      - "ocaml-shared-data:/var/run/tezos/node"
+    ports:
+      # should be equal inside docker and outside, because the node tells this port in its connection message,
+      # that is how peers can connect to it later
+      - "9733:9733"
+      - "18733:18733"     # node RPC port
+
   explorer:
     image: tezedge/tezedge-explorer:${TAG:-v1.6.0}
     environment:
       # need a better way to provide such information
-      - API=[{"id":"rust","name":"rust.localhost","http":"http://localhost:18732","p2p_port":9732,"features":[{"name":"ws","url":"ws://localhost:4927"},{"name":"debugger","url":"http://localhost:17732"},{"name":"resources/memory","memoryProfilerUrl":"http://localhost:17832"},{"name":"commit","id":""},{"name":"monitoring"},{"name":"resources/system","monitoringUrl":"http://localhost:38732/resources/tezedge"},{"name":"resources/storage"},{"name":"mempool"},{"name":"storage"},{"name":"network"},{"name":"logs"}]}]
+      - API=[{"id":"rust","name":"rust.localhost","http":"http://localhost:18732","p2p_port":9732,"features":[{"name":"ws","url":"ws://localhost:4927"},{"name":"debugger","url":"http://localhost:17732"},{"name":"resources/memory","memoryProfilerUrl":"http://localhost:17832"},{"name":"commit","id":""},{"name":"monitoring"},{"name":"resources/system","monitoringUrl":"http://localhost:38732/resources/tezedge"},{"name":"resources/storage"},{"name":"mempool"},{"name":"storage"},{"name":"network"},{"name":"logs"}]},{"id":"ocaml","name":"ocaml.localhost","http":"http://localhost:18733","p2p_port":9733,"features":[{"name":"debugger","url":"http://localhost:17732"},{"name":"monitoring"},{"name":"resources/system","monitoringUrl":"http://localhost:38732/resources/ocaml"},{"name":"resources/storage"},{"name":"mempool"},{"name":"network"},{"name":"logs"}]}]
     ports:
       - "80:80"
 
 volumes:
   tezedge-shared-data:
     external: false
-  tezos-shared-data:
+  ocaml-shared-data:
     external: false

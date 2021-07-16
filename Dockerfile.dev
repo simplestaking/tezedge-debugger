@@ -1,0 +1,10 @@
+FROM tezedge/tezedge-bpf-builder:latest as builder
+
+FROM tezedge/tezedge-libs:latest-profile
+
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libelf.so.1 /usr/lib/x86_64-linux-gnu/libelf.so.1
+COPY --from=builder /lib/x86_64-linux-gnu/libz.so.1 /lib/x86_64-linux-gnu/libz.so.1
+COPY dev-dir/bpf-recorder /usr/local/bin/bpf-recorder
+COPY dev-dir/tezedge-recorder /usr/local/bin/tezedge-recorder
+
+ENTRYPOINT [ "tezedge-recorder", "--run-bpf" ]

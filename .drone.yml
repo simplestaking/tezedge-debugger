@@ -63,7 +63,7 @@ steps:
       - name: docker_sock
         path: /var/run/docker.sock
     commands:
-      - apt-get install -y pkg-config clang net-tools
+      - apt-get install -y pkg-config clang
       - rustup install nightly-2021-03-23
       - rustup install stable
       # docker client
@@ -72,19 +72,25 @@ steps:
       - rm docker-20.10.0.tgz
       # build recorder and tester
       - cargo +stable install bpf-linker --git https://github.com/tezedge/bpf-linker.git --branch main
-      - cargo +stable build -p bpf-recorder --release
+      - cargo +stable install --path bpf-recorder
       - cargo +nightly-2021-03-23 build -p tester --tests --release
       - cargo +nightly-2021-03-23 build -p tezedge-recorder --release
+      # stop old node if any
+      - docker stop tezedge_node || true
+      # remove old debugger's db if any
+      - rm -Rf /tmp/volume/tezedge_debugger || true
       # configure
       - rm config.toml && cp config-drone.toml config.toml
+      # test logs
+      - ./tester/log.sh
       # run recorder
-      - docker stop tezedge_node || true
-      - ./target/none/release/bpf-recorder & sleep 0.5 && ./target/none/release/tezedge-recorder & sleep 1
-      - netstat -nlp
+      - echo 'p2p = { identity = "/tmp/volume/tezedge/identity.json", port = 9732 }' >> config.toml
+      - ./target/none/release/tezedge-recorder --run-bpf & sleep 2
       # run tezedge-node in docker
       - docker run --rm -d --name tezedge_node -v /tmp/volume/tezedge:/tmp/tezedge tezedge/tezedge:latest-frame-pointers-enabled --network mainnet
-      - DEBUGGER_URL="http://localhost:17745" cargo +nightly-2021-03-23 test -p tester --release -- wait --nocapture
-      - DEBUGGER_URL="http://localhost:17745" cargo +nightly-2021-03-23 test -p tester --release -- p2p_limit p2p_cursor p2p_types_filter --nocapture
+      # test p2p
+      - DEBUGGER_URL="http://localhost:17742" cargo +nightly-2021-03-23 test -p tester --release -- wait --nocapture
+      - DEBUGGER_URL="http://localhost:17742" cargo +nightly-2021-03-23 test -p tester --release -- p2p_limit p2p_cursor p2p_types_filter --nocapture
       # stop the node
       - docker stop tezedge_node
 

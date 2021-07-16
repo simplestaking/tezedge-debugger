@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::convert::TryFrom;
-use storage::persistent::{KeyValueSchema, Encoder, Decoder, SchemaError};
+use storage::persistent::{KeyValueSchema, Encoder, Decoder, SchemaError, database::RocksDbKeyValueSchema};
 
 /// * bytes layout: `[timestamp(8)][index(8)]`
 pub struct Item {
@@ -39,7 +39,9 @@ pub struct MessageSchema;
 impl KeyValueSchema for MessageSchema {
     type Key = Item;
     type Value = ();
+}
 
+impl RocksDbKeyValueSchema for MessageSchema {
     fn name() -> &'static str {
         "message_timestamp_secondary_index"
     }
@@ -50,7 +52,9 @@ pub struct LogSchema;
 impl KeyValueSchema for LogSchema {
     type Key = Item;
     type Value = ();
+}
 
+impl RocksDbKeyValueSchema for LogSchema {
     fn name() -> &'static str {
         "log_timestamp_secondary_index"
     }

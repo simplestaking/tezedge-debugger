@@ -16,7 +16,7 @@ toml = "0.5"
 serde = "1.0"
 serde_json = "1.0"
 hex = "0.4"
-rocksdb = "0.15.0"
+rocksdb = "0.15"
 anyhow = "1.0"
 thiserror = "1.0"
 log = "0.4"
@@ -33,11 +33,14 @@ warp = "0.3"
 tokio = { version = "1.8", features = ["rt-multi-thread"] }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
-jemallocator = { version = "0.3.2", optional = true }
+jemallocator = { version = "0.3", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 bpf-recorder = { path = "../bpf-recorder", features = ["client"] }
 
-crypto = { tag = "v1.1.5", git = "https://github.com/tezedge/tezedge" }
-storage = { tag = "v1.1.5", git = "https://github.com/tezedge/tezedge" }
-tezos_messages = { tag = "v1.1.5", git = "https://github.com/tezedge/tezedge" }
+crypto = { tag = "v1.6.5", git = "https://github.com/tezedge/tezedge" }
+tezos_messages = { tag = "v1.6.5", git = "https://github.com/tezedge/tezedge" }
+storage = { tag = "v1.6.5", git = "https://github.com/tezedge/tezedge" }
+#crypto = { path = "../../tezedge/crypto" }
+#tezos_messages = { path = "../../tezedge/tezos/messages" }
+#storage = { path = "../../tezedge/storage" }
