@@ -22,6 +22,7 @@
         "deallocated",
         "ebpf",
         "entrypoint",
+        "eoan",
         "execve",
         "execveat",
         "extfrag",

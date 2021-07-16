@@ -8,7 +8,7 @@ use serde::{
     ser::{self, SerializeSeq, SerializeStruct},
 };
 use typenum::Bit;
-use storage::persistent::{KeyValueSchema, Encoder, Decoder, SchemaError};
+use storage::persistent::{KeyValueSchema, Encoder, Decoder, SchemaError, database::RocksDbKeyValueSchema};
 use super::common::{Initiator, Sender};
 
 #[derive(Debug, Clone, Default)]
@@ -410,7 +410,9 @@ pub struct Schema;
 impl KeyValueSchema for Schema {
     type Key = Key;
     type Value = Value;
+}
 
+impl RocksDbKeyValueSchema for Schema {
     fn name() -> &'static str {
         "connection_storage"
     }

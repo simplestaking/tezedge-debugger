@@ -5,7 +5,7 @@ use std::{
     convert::TryFrom,
     net::{SocketAddr, IpAddr},
 };
-use storage::persistent::{KeyValueSchema, Encoder, Decoder, SchemaError};
+use storage::persistent::{KeyValueSchema, Encoder, Decoder, SchemaError, database::RocksDbKeyValueSchema};
 use rocksdb::{ColumnFamilyDescriptor, Cache};
 
 /// WARNING: this index work only with 48 bit index, should be enough
@@ -58,7 +58,9 @@ pub struct Schema;
 impl KeyValueSchema for Schema {
     type Key = Item;
     type Value = ();
+}
 
+impl RocksDbKeyValueSchema for Schema {
     fn descriptor(_cache: &Cache) -> ColumnFamilyDescriptor {
         use rocksdb::{Options, SliceTransform};
 

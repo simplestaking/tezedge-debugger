@@ -3,7 +3,7 @@
 
 use std::{net::SocketAddr, ops::Range, convert::TryFrom};
 use serde::{Deserialize, Serialize, ser};
-use storage::persistent::{KeyValueSchema, BincodeEncoded};
+use storage::persistent::{KeyValueSchema, BincodeEncoded, database::RocksDbKeyValueSchema};
 use tezos_messages::p2p::{
     encoding::{
         connection::ConnectionMessage,
@@ -11,7 +11,7 @@ use tezos_messages::p2p::{
         ack::AckMessage,
         peer::{PeerMessage, PeerMessageResponse},
     },
-    binary_message::BinaryMessage,
+    binary_message::BinaryRead,
 };
 use super::{
     common::{Initiator, Sender, MessageCategory, MessageKind, MessageType},
@@ -277,7 +277,9 @@ pub struct Schema;
 impl KeyValueSchema for Schema {
     type Key = u64;
     type Value = Item;
+}
 
+impl RocksDbKeyValueSchema for Schema {
     fn name() -> &'static str {
         "message_storage"
     }
