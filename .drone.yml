@@ -63,7 +63,7 @@ steps:
       - name: docker_sock
         path: /var/run/docker.sock
     commands:
-      - apt-get install -y pkg-config clang
+      - apt-get install -y pkg-config clang libev-dev
       - rustup install nightly-2021-03-23
       - rustup install stable
       # docker client
@@ -81,6 +81,7 @@ steps:
       - rm -Rf /tmp/volume/tezedge_debugger || true
       # configure
       - rm config.toml && cp config-drone.toml config.toml
+      - export LD_LIBRARY_PATH=/usr/local/cargo/git/checkouts/tezedge-*/*/tezos/sys/lib_tezos/artifacts
       # test logs
       - ./tester/log.sh
       # run recorder

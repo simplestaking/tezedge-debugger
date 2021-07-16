@@ -6,8 +6,9 @@ use rocksdb::{Cache, DB, ReadOptions};
 use storage::{
     Direction, IteratorMode,
     persistent::{
-        self, DBError, DbConfiguration, Decoder, Encoder, KeyValueSchema, KeyValueStoreWithSchema,
-        SchemaError,
+        self, DBError, DbConfiguration, Decoder, Encoder, KeyValueSchema,
+        KeyValueStoreWithSchemaIterator, KeyValueStoreBackend, SchemaError,
+        database::RocksDbKeyValueSchema,
     },
 };
 use anyhow::Result;
@@ -44,9 +45,9 @@ pub struct Db {
 }
 
 impl Db {
-    fn as_kv<S>(&self) -> &impl KeyValueStoreWithSchema<S>
+    fn as_kv<S>(&self) -> &(impl KeyValueStoreBackend<S> + KeyValueStoreWithSchemaIterator<S>)
     where
-        S: KeyValueSchema,
+        S: KeyValueSchema + RocksDbKeyValueSchema,
     {
         &self.inner
     }
@@ -82,14 +83,14 @@ impl DatabaseNew for Db {
             log_level::Schema::descriptor(&cache),
             timestamp::LogSchema::descriptor(&cache),
         ];
-        let inner = persistent::open_kv(path, cfs, &DbConfiguration::default())?;
+        let inner = persistent::database::open_kv(path, cfs, &DbConfiguration::default())?;
 
         fn counter<S>(db: &DB) -> Option<S::Key>
         where
-            S: KeyValueSchema,
+            S: RocksDbKeyValueSchema,
             S::Key: Add<u64, Output = S::Key>,
         {
-            KeyValueStoreWithSchema::<S>::iterator(db, IteratorMode::End)
+            KeyValueStoreWithSchemaIterator::<S>::iterator(db, IteratorMode::End)
                 .ok()?
                 .next()?
                 .0
@@ -672,7 +673,7 @@ impl DatabaseFetch for Db {
 fn details(
     message_item: &message::Item,
     id: u64,
-    db: &impl KeyValueStoreWithSchema<chunk::Schema>,
+    db: &(impl KeyValueStoreBackend<chunk::Schema> + KeyValueStoreWithSchemaIterator<chunk::Schema>),
 ) -> Result<message::MessageDetails, DbError> {
     let mut chunks = Vec::new();
     for key in message_item.chunks() {

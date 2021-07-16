@@ -4,7 +4,7 @@
 use std::{str::FromStr, convert::TryFrom};
 use thiserror::Error;
 use serde::{Serialize, Deserialize};
-use storage::persistent::{BincodeEncoded, KeyValueSchema};
+use storage::persistent::{BincodeEncoded, KeyValueSchema, database::RocksDbKeyValueSchema};
 
 #[derive(Serialize, Deserialize)]
 pub struct ItemWithId {
@@ -176,7 +176,9 @@ pub struct Schema;
 impl KeyValueSchema for Schema {
     type Key = u64;
     type Value = Item;
+}
 
+impl RocksDbKeyValueSchema for Schema {
     fn name() -> &'static str {
         "log_storage"
     }
